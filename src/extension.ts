@@ -9,12 +9,19 @@ export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "j2-definition-provider" is now active!');
 
-	let disposable = vscode.languages.registerDefinitionProvider({
+	const jinjaSelector = {
 		scheme: "file",
 		language: "jinja",
-	}, new DefProvider());
+	};
+
+	let disposable = vscode.languages.registerDefinitionProvider(jinjaSelector, new DefProvider());
 
 	context.subscriptions.push(disposable);
+
+	disposable = vscode.languages.registerDocumentSymbolProvider(jinjaSelector, new SymbolsProvider());
+
+	context.subscriptions.push(disposable);
+
 }
 
 class DefProvider implements vscode.DefinitionProvider {
@@ -35,6 +42,23 @@ class DefProvider implements vscode.DefinitionProvider {
 	}
 
 }
+
+class SymbolsProvider implements vscode.DocumentSymbolProvider {
+	provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[] | vscode.DocumentSymbol[]> {
+		const symbols: vscode.SymbolInformation[] = [];
+		const macros = parseMacroDefinitions(document.getText());
+
+		for (const macro of macros) {
+			symbols.push(
+				new vscode.SymbolInformation(macro.name, vscode.SymbolKind.Function, "document", 
+				new vscode.Location(document.uri, new vscode.Position(macro.line, 0)))
+				);
+		}
+
+		return symbols;
+	}
+}
+
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
