@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { parseMacroDefinitions, parseMacroNameFromDefLine, parseMacroInvocationsFromLine } from "./jinja";
+import { parseMacroDefinitions, parseMacroNameFromAnyLine, parseMacroInvocationsFromLine } from "./jinja";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -66,8 +66,7 @@ class ReferenceProvider implements vscode.ReferenceProvider {
 	async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		const line = document.lineAt(position.line);
 
-		// match macro definition
-		const macroName = parseMacroNameFromDefLine(line.text);
+		const macroName = parseMacroNameFromAnyLine(line.text);
 
 		if (!macroName) {
 			return null;

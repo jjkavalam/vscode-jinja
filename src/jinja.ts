@@ -19,6 +19,15 @@ export function parseMacroDefinitions(text: string): MacroDefinition[] {
     return r;
 }
 
+export function parseMacroNameFromAnyLine(line: string): string | null {
+    // anything that resembles a function call (includes macro definitions as well as invocations)
+    const m = /(\w+)\(.*\)/.exec(line);
+    if (m) {
+        return m[1];
+    }
+    return null;
+}
+
 export function parseMacroNameFromDefLine(line: string): string | null {
     const m = /{% macro (\w+)/.exec(line);
     if (m) {
@@ -38,6 +47,12 @@ class MacroInvocation {
 
 
 export function parseMacroInvocationsFromLine(line: string): MacroInvocation[] {
+    // explicitely check if the line is a macro definition rather than an invocation
+    // because those lines also match the regex we are using to target invocation
+    if (line.startsWith("{% macro ")) {
+        return [];
+    }
+
     const re = /(\w+)\(.*\)/g;
 
     const invocations = [];
