@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { parseMacroDefinitions } from "./jinja";
+import { parseMacroDefinitions, parseMacroNameFromDefLine, parseMacroInvocationsFromLine } from "./jinja";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -22,6 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
+	disposable = vscode.languages.registerReferenceProvider(jinjaSelector, new ReferenceProvider());
+
+	context.subscriptions.push(disposable);
 }
 
 class DefProvider implements vscode.DefinitionProvider {
@@ -59,6 +62,39 @@ class SymbolsProvider implements vscode.DocumentSymbolProvider {
 	}
 }
 
+class ReferenceProvider implements vscode.ReferenceProvider {
+	async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
+		const line = document.lineAt(position.line);
+
+		// match macro definition
+		const macroName = parseMacroNameFromDefLine(line.text);
+
+		if (!macroName) {
+			return null;
+		}
+
+		const files = await vscode.workspace.findFiles("**/*.j2");
+		const locations: vscode.Location[]  = [];
+		for (const file of files) {
+			const document = await vscode.workspace.openTextDocument(file);
+			const macroInvocations = parseMacroInvocationsOf(document, macroName);
+			locations.push(...macroInvocations);
+		}
+		return locations;
+	}
+}
+
+function parseMacroInvocationsOf(text: vscode.TextDocument, macroName: string): vscode.Location[] {
+    const locations: vscode.Location[]  = [];
+    for (let i = 0; i < text.lineCount; i++) {
+        const line = text.lineAt(i);
+        const matchingMacroInvocations = parseMacroInvocationsFromLine(line.text)
+            .filter(mi => mi.name === macroName)
+            .map(mi => new vscode.Location(text.uri, new vscode.Position(i, mi.col)));
+        locations.push(...matchingMacroInvocations);
+    }
+    return locations;
+}
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
